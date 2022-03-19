@@ -1,7 +1,6 @@
 import os
 import cv2
-from skimage.io import imsave
-from skimage.filters import hessian
+
 import numpy as np
 import kivy
 from kivy.app import App
@@ -16,17 +15,17 @@ from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.properties import NumericProperty,ObjectProperty,StringProperty
 from kivy.uix.textinput import TextInput
-from kivy import platform
+#
+from jnius import autoclass
+Environment = autoclass('android.os.Environment')
+storage_path = Environment.getExternalStorageDirectory().getAbsolutePath()
+#
 
 # Create both screens. Please note the root.manager.current: this is how
 # you can control the ScreenManager from kv. Each screen has by default a
 
 #from code import calculate_d
 # property manager that gives you the instance of the ScreenManager used.
-if platform=="android":
-    from android.permissions import Permission,request_permissions
-    request_permissions([Permission.CAMERA,Permission.READ_EXTERNAL_STORAGE,Permission.WRITE_EXTERNAL_STORAGE])
-
 Window.maximize()
 Builder.load_string("""
 <MenuScreen>:
@@ -125,7 +124,7 @@ Builder.load_string("""
     FloatLayout:
         Image:      
             id: image
-            source: 'image.png'
+            source: '{}\image.png'.format(root.path)
             allow_stretch: True  
         Button:
             
@@ -289,7 +288,7 @@ class CameraScreen(Screen):
         according to their captured time and date.
         '''
         camera = self.ids['camera']
-        camera.export_to_png('image.png')
+        camera.export_to_png(f"{storage_path}/image.png")
 
 class MyWidget(Screen):
     path = StringProperty()
@@ -300,6 +299,7 @@ class MyWidget(Screen):
         except: pass
         
 class DisplayImageScreen(Screen):
+    path = storage_path
     def __init__(self, **kwargs):
        super(DisplayImageScreen,self).__init__(**kwargs)
        # Photo can be reference by running the photo function once:
@@ -333,14 +333,14 @@ class ResultScreen(Screen):
 ####################################################################################
 #############################   Segmentation   #####################################
 
-            img = cv2.imread("image.png")
+            img = cv2.imread(f"{storage_path}\image.png")
             gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
             #generate hessian image
-            hessian_img = hessian(gray)
-            imsave("hessian_img.png",hessian_img)
+           
+            
         
-            image = cv2.imread('hessian_img.png')
+            image = gray
 
             image = cv2.resize(image,(img.shape[1],img.shape[0]),interpolation = cv2.INTER_AREA)
             gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
@@ -362,10 +362,10 @@ class ResultScreen(Screen):
 
             xxx = np.bitwise_and(image,result)
 
-            cv2.imwrite('image_1.png',xxx)
+            cv2.imwrite(f"{storage_path}\image_1.png",xxx)
             #Draw contours
 
-            Test = cv2.imread('image_1.png')
+            Test = cv2.imread(f"{storage_path}\image_1.png")
             gray = cv2.cvtColor(Test,cv2.COLOR_BGR2GRAY)
 
             contours ,hier = cv2.findContours(gray,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
@@ -377,14 +377,14 @@ class ResultScreen(Screen):
             cv2.drawContours(mask,[largest[-1]],0,(255,255,255),-1)
             removed = cv2.bitwise_and(Test,mask)
 
-            cv2.imwrite('removed.png',removed)
+            cv2.imwrite(f"{storage_path}\removed.png",removed)
         
             gray_image = cv2.cvtColor(removed,cv2.COLOR_BGR2GRAY)
 
             (thresh, bin_img) = cv2.threshold(gray_image,50,255,cv2.THRESH_BINARY)
 
-            cv2.imwrite('Finalimage.png',bin_img)
-            pl = cv2.imread('Finalimage.png',0)
+            cv2.imwrite(f"{storage_path}\Finalimage.png",bin_img)
+            pl = cv2.imread(f"{storage_path}\Finalimage.png",0)
             pp = np.reshape(pl,img.shape[0]*img.shape[1])
             self.value = np.sum([pp>107])
         except Exception:
@@ -416,10 +416,10 @@ class ResultUScreen(Screen):
             gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
             #generate hessian image
-            hessian_img = hessian(gray,mode='constant')
-            imsave("hessian_img.png",hessian_img)
+          
+           
         
-            image = cv2.imread('hessian_img.png')
+            image = gray
             image = cv2.resize(image,(img.shape[1],img.shape[0]),interpolation = cv2.INTER_AREA)
             gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
 
@@ -440,10 +440,10 @@ class ResultUScreen(Screen):
 
             xxx = np.bitwise_and(image,result)
 
-            cv2.imwrite('image_1.png',xxx)
+            cv2.imwrite(f"{storage_path}\image_1.png",xxx)
             #Draw contours
 
-            Test = cv2.imread('image_1.png')
+            Test = cv2.imread(f"{storage_path}\image_1.png")
             gray = cv2.cvtColor(Test,cv2.COLOR_BGR2GRAY)
 
             contours ,hier = cv2.findContours(gray,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
@@ -455,14 +455,14 @@ class ResultUScreen(Screen):
             cv2.drawContours(mask,[largest[-1]],0,(255,255,255),-1)
             removed = cv2.bitwise_and(Test,mask)
 
-            cv2.imwrite('removed.png',removed)
+            cv2.imwrite(f"{storage_path}\removed.png",removed)
         
             gray_image = cv2.cvtColor(removed,cv2.COLOR_BGR2GRAY)
 
             (thresh, bin_img) = cv2.threshold(gray_image,50,255,cv2.THRESH_BINARY)
 
-            cv2.imwrite('Finalimage.png',bin_img)
-            pl = cv2.imread('Finalimage.png',0)
+            cv2.imwrite(f"{storage_path}\Finalimage.png",bin_img)
+            pl = cv2.imread(f"{storage_path}\Finalimage.png",0)
             pp = np.reshape(pl,img.shape[0]*img.shape[1])
             self.value = np.sum([pp>107])
         except Exception:
@@ -482,17 +482,10 @@ class ResultUScreen(Screen):
 class TestApp(App):
 
     def build(self):
-        file = "StorageFile"
-        try:
-            os.mkdir(file)
-            s = os.getcwd()+"\\"+file
-            os.chdir(s)
-        except Exception:
-            s = os.getcwd()+"\\"+file
-            os.chdir(s)
         
         blank_image = np.zeros(shape=[512,512],dtype=np.uint8)
-        cv2.imwrite('image.png',blank_image)
+        cv2.imwrite(f"{storage_path}/image.png",blank_image)
+       
         # Create the screen manager
         sm = ScreenManager()
         sm.add_widget(MenuScreen(name='menu'))
@@ -502,9 +495,11 @@ class TestApp(App):
         sm.add_widget(DistanceScreen(name='distance'))
         sm.add_widget(DistanceUScreen(name='distanceu'))
         sm.add_widget(ResultScreen(name='result'))
-        sm.add_widget(ResultUScreen(name='resultu'))
-        
+        sm.add_widget(ResultUScreen(name='resultu'))  
         return sm
+    def on_start(self):
+        from android.permissions import request_permissions, Permission
+        request_permissions([Permission.READ_EXTERNAL_STORAGE,Permission.WRITE_EXTERNAL_STORAGE,Permission.CAMERA])
 
 if __name__ == '__main__':
     TestApp().run()
